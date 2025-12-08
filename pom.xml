@@ -5,7 +5,7 @@
   <groupId>com.znaji</groupId>
   <artifactId>spring-security-lab</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
+  <packaging>war</packaging>
 
   <name>spring-security-lab</name>
   <url>http://maven.apache.org</url>
@@ -63,6 +63,16 @@
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <!-- This ensures the WAR is always named exactly like dockerfile want it -->
+          <warName>spring-security-lab</warName>
         </configuration>
       </plugin>
     </plugins>
