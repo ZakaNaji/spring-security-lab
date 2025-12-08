@@ -1,0 +1,18 @@
+##success:
+
+POST http://localhost:8080/login
+Content-Type: application/json
+
+{
+  "username": "user",
+  "password": "password"
+}
+### Invalid credentials:
+
+POST http://localhost:8080/login
+Content-Type: application/json
+
+{
+"username": "Admin",
+"password": "password"
+}
