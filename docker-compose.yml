@@ -6,6 +6,7 @@ services:
     container_name: spring-security-lab
     ports:
       - "8080:8080"
+      - "5005:5005"
     volumes:
       # Auto redeploy WAR when rebuilt by Maven
       - ./target/spring-security-lab.war:/usr/local/tomcat/webapps/ROOT.war
