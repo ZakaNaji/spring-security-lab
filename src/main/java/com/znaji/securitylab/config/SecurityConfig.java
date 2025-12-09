@@ -3,17 +3,24 @@ package com.znaji.securitylab.config;
 import com.znaji.securitylab.security.CustomAuthProvider;
 import com.znaji.securitylab.security.CustomLoginFilter;
 import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.SessionFixationProtectionStrategy;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -30,7 +37,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        Filter loginFilter = new CustomLoginFilter(authenticationManager());
+        AbstractAuthenticationProcessingFilter loginFilter = new CustomLoginFilter(authenticationManager());
+        loginFilter.setSecurityContextRepository(securityContextRepository());
+        loginFilter.setAuthenticationSuccessHandler(((request, response, authentication) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {"status":"success","message":"Logged in!"}
+                """);
+        }));
+
+        loginFilter.setAuthenticationFailureHandler((request, response, exception) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {"status":"fail","error":"Bad credentials"}
+                """);
+        });
+        //loginFilter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
+
+
         http
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
                 .authorizeHttpRequests(auth -> auth
@@ -38,9 +64,22 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
-                .sessionManagement(sess -> sess.disable());
+                .sessionManagement(sess ->
+                        sess.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                //.securityContext(secContext -> secContext.requireExplicitSave(false))
+        ;
 
         return http.build();
+    }
+
+    @Bean
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
+    }
+
+    @Bean
+    public SessionAuthenticationStrategy sessionAuthenticationStrategy() {
+        return new SessionFixationProtectionStrategy();
     }
 
     /**
