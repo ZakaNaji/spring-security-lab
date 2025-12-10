@@ -67,6 +67,18 @@ public class SecurityConfig {
                 .sessionManagement(sess ->
                         sess.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 //.securityContext(secContext -> secContext.requireExplicitSave(false))
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID")
+                        .clearAuthentication(true)
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(HttpServletResponse.SC_OK);
+                            response.setContentType("application/json");
+                            response.getWriter().write("""
+                                 {"status":"success","message":"Logged out"}
+                                 """);
+                        }))
         ;
 
         return http.build();
