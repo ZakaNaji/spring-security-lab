@@ -2,6 +2,7 @@ package com.znaji.securitylab.config;
 
 import com.znaji.securitylab.security.CustomAuthProvider;
 import com.znaji.securitylab.security.CustomLoginFilter;
+import com.znaji.securitylab.security.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -95,13 +96,18 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationSuccessHandler loginSuccessHandler() {
+    public AuthenticationSuccessHandler loginSuccessHandler(JwtService jwtService) {
         return (request, response, authentication) -> {
+            String token = jwtService.generateToken(authentication);
+
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json");
             response.getWriter().write("""
-            {"status":"success","message":"Logged in!"}
-        """);
+            {
+              "status": "success",
+              "token": "%s"
+            }
+        """.formatted(token));
         };
     }
 
