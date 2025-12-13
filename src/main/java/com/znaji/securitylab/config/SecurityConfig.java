@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
@@ -54,7 +55,7 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exceptionConfig -> exceptionConfig
                         .accessDeniedHandler(accessDeniedHandler())
-                        //.authenticationEntryPoint()
+                        .authenticationEntryPoint(authenticationEntryPoint())
                 )
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(sess ->
@@ -69,6 +70,17 @@ public class SecurityConfig {
         ;
 
         return http.build();
+    }
+
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+            {"status":"unauthorized","message":"Authentication required"}
+        """);
+        };
     }
 
     @Bean
@@ -110,7 +122,8 @@ public class SecurityConfig {
             AuthenticationSuccessHandler successHandler,
             AuthenticationFailureHandler failureHandler
     ) {
-        CustomLoginFilter filter = new CustomLoginFilter(authenticationManager);
+        CustomLoginFilter filter = new CustomLoginFilter();
+        filter.setAuthenticationManager(authenticationManager);
         filter.setSecurityContextRepository(securityContextRepository);
         filter.setAuthenticationSuccessHandler(successHandler);
         filter.setAuthenticationFailureHandler(failureHandler);

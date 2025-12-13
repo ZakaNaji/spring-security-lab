@@ -15,12 +15,10 @@ import java.util.Map;
 
 public class CustomLoginFilter extends AbstractAuthenticationProcessingFilter {
 
-    private final AuthenticationManager manager;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public CustomLoginFilter(AuthenticationManager manager) {
+    public CustomLoginFilter() {
         super("/login");
-        this.manager = manager;
     }
 
     @Override
@@ -32,7 +30,7 @@ public class CustomLoginFilter extends AbstractAuthenticationProcessingFilter {
         String password = body.get("password");
         UsernamePasswordAuthToken unAuthUser = new UsernamePasswordAuthToken(username, password);
 
-        return manager.authenticate(unAuthUser);
+        return getAuthenticationManager().authenticate(unAuthUser);
     }
 
 }
