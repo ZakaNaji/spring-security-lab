@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -17,6 +19,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
@@ -63,7 +67,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/vip/**").access(customAuthz())
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exceptionConfig -> exceptionConfig
+                        .accessDeniedHandler(accessDeniedHandler())
+                        //.authenticationEntryPoint()
                 )
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(sess ->
@@ -84,6 +95,26 @@ public class SecurityConfig {
         ;
 
         return http.build();
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, ex) -> {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+            {"status":"forbidden","message":"Access denied"}
+            """);
+        };
+    }
+
+    @Bean
+    public AuthorizationManager<RequestAuthorizationContext> customAuthz() {
+        return (authentication, context) -> {
+            String name = authentication.get().getName();
+            boolean granted = name.startsWith("VIP");
+            return new AuthorizationDecision(granted);
+        };
     }
 
     @Bean
@@ -117,7 +148,12 @@ public class SecurityConfig {
                 .roles("ADMIN")
                 .build();
 
-        return new InMemoryUserDetailsManager(user, admin);
+        UserDetails vip = User.withUsername("VIP")
+                .password(encoder.encode("VIP"))
+                .roles("VIP")
+                .build();
+
+        return new InMemoryUserDetailsManager(user, admin, vip);
     }
 
     @Bean
