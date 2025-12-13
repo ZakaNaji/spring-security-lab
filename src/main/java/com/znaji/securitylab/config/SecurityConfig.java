@@ -2,7 +2,6 @@ package com.znaji.securitylab.config;
 
 import com.znaji.securitylab.security.CustomAuthProvider;
 import com.znaji.securitylab.security.CustomLoginFilter;
-import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,13 +21,14 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.SessionFixationProtectionStrategy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -41,27 +41,7 @@ public class SecurityConfig {
      * - HTTP Basic for now (we'll replace with our own flow later)
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
-        AbstractAuthenticationProcessingFilter loginFilter = new CustomLoginFilter(authenticationManager());
-        loginFilter.setSecurityContextRepository(securityContextRepository());
-        loginFilter.setAuthenticationSuccessHandler(((request, response, authentication) -> {
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                {"status":"success","message":"Logged in!"}
-                """);
-        }));
-
-        loginFilter.setAuthenticationFailureHandler((request, response, exception) -> {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                {"status":"fail","error":"Bad credentials"}
-                """);
-        });
-        //loginFilter.setSessionAuthenticationStrategy(sessionAuthenticationStrategy());
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AbstractAuthenticationProcessingFilter loginFilter) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
@@ -85,17 +65,58 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                         .clearAuthentication(true)
-                        .logoutSuccessHandler((request, response, authentication) -> {
-                            response.setStatus(HttpServletResponse.SC_OK);
-                            response.setContentType("application/json");
-                            response.getWriter().write("""
-                                 {"status":"success","message":"Logged out"}
-                                 """);
-                        }))
+                        .logoutSuccessHandler(logoutSuccessHandler()))
         ;
 
         return http.build();
     }
+
+    @Bean
+    public LogoutSuccessHandler logoutSuccessHandler() {
+        return (request, response, authentication) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+            {"status":"success","message":"Logged out"}
+        """);
+        };
+    }
+
+    @Bean
+    public AuthenticationSuccessHandler loginSuccessHandler() {
+        return (request, response, authentication) -> {
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+            {"status":"success","message":"Logged in!"}
+        """);
+        };
+    }
+
+    @Bean
+    public AuthenticationFailureHandler loginFailureHandler() {
+        return (request, response, exception) -> {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+            {"status":"fail","error":"Bad credentials"}
+        """);
+        };
+    }
+    @Bean
+    public AbstractAuthenticationProcessingFilter loginFilter(
+            AuthenticationManager authenticationManager,
+            SecurityContextRepository securityContextRepository,
+            AuthenticationSuccessHandler successHandler,
+            AuthenticationFailureHandler failureHandler
+    ) {
+        CustomLoginFilter filter = new CustomLoginFilter(authenticationManager);
+        filter.setSecurityContextRepository(securityContextRepository);
+        filter.setAuthenticationSuccessHandler(successHandler);
+        filter.setAuthenticationFailureHandler(failureHandler);
+        return filter;
+    }
+
 
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
