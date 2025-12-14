@@ -48,7 +48,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/login", "/refresh").permitAll()
+                        .requestMatchers("/public/**", "/login", "/refresh", "/logout").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/vip/**").access(customAuthz())
@@ -66,12 +66,8 @@ public class SecurityConfig {
                 .sessionManagement(sess ->
                         sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 //.securityContext(secContext -> secContext.requireExplicitSave(false))
-                //.logout(logout -> logout
-                //        .logoutUrl("/logout")
-                //        .invalidateHttpSession(true)
-                //        .deleteCookies("JSESSIONID")
-                //        .clearAuthentication(true)
-                //        .logoutSuccessHandler(logoutSuccessHandler()))
+                .logout(logout -> logout
+                        .disable())
         ;
 
         return http.build();
