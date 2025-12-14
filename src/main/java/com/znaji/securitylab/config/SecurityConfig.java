@@ -1,9 +1,6 @@
 package com.znaji.securitylab.config;
 
-import com.znaji.securitylab.security.CustomAuthProvider;
-import com.znaji.securitylab.security.CustomLoginFilter;
-import com.znaji.securitylab.security.JwtAuthenticationFilter;
-import com.znaji.securitylab.security.JwtService;
+import com.znaji.securitylab.security.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,7 +48,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**").permitAll()
+                        .requestMatchers("/public/**", "/login", "/refresh").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/vip/**").access(customAuthz())
@@ -69,12 +66,12 @@ public class SecurityConfig {
                 .sessionManagement(sess ->
                         sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 //.securityContext(secContext -> secContext.requireExplicitSave(false))
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .clearAuthentication(true)
-                        .logoutSuccessHandler(logoutSuccessHandler()))
+                //.logout(logout -> logout
+                //        .logoutUrl("/logout")
+                //        .invalidateHttpSession(true)
+                //        .deleteCookies("JSESSIONID")
+                //        .clearAuthentication(true)
+                //        .logoutSuccessHandler(logoutSuccessHandler()))
         ;
 
         return http.build();
@@ -103,18 +100,22 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationSuccessHandler loginSuccessHandler(JwtService jwtService) {
+    public AuthenticationSuccessHandler loginSuccessHandler(JwtService jwtService,
+                                                            RefreshTokenService refreshTokenService) {
+
         return (request, response, authentication) -> {
-            String token = jwtService.generateToken(authentication);
+            String accessToken = jwtService.generateToken(authentication);
+            String refreshToken =
+                    refreshTokenService.createRefreshToken(authentication.getName());
 
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json");
             response.getWriter().write("""
             {
-              "status": "success",
-              "token": "%s"
+              "accessToken": "%s",
+              "refreshToken": "%s"
             }
-        """.formatted(token));
+            """.formatted(accessToken, refreshToken));
         };
     }
 
