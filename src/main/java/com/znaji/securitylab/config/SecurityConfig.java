@@ -2,6 +2,7 @@ package com.znaji.securitylab.config;
 
 import com.znaji.securitylab.security.CustomAuthProvider;
 import com.znaji.securitylab.security.CustomLoginFilter;
+import com.znaji.securitylab.security.JwtAuthenticationFilter;
 import com.znaji.securitylab.security.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
@@ -43,7 +44,9 @@ public class SecurityConfig {
      * - HTTP Basic for now (we'll replace with our own flow later)
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AbstractAuthenticationProcessingFilter loginFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   AbstractAuthenticationProcessingFilter loginFilter,
+                                                   JwtService jwtService) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable()) // just to keep things simple for now
@@ -58,9 +61,13 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler())
                         .authenticationEntryPoint(authenticationEntryPoint())
                 )
+                .addFilterBefore(
+                        new JwtAuthenticationFilter(jwtService),
+                        UsernamePasswordAuthenticationFilter.class
+                )
                 .addFilterAt(loginFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(sess ->
-                        sess.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                        sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 //.securityContext(secContext -> secContext.requireExplicitSave(false))
                 .logout(logout -> logout
                         .logoutUrl("/logout")
@@ -130,7 +137,7 @@ public class SecurityConfig {
     ) {
         CustomLoginFilter filter = new CustomLoginFilter();
         filter.setAuthenticationManager(authenticationManager);
-        filter.setSecurityContextRepository(securityContextRepository);
+        //filter.setSecurityContextRepository(securityContextRepository);
         filter.setAuthenticationSuccessHandler(successHandler);
         filter.setAuthenticationFailureHandler(failureHandler);
         return filter;
