@@ -101,8 +101,7 @@ public class SecurityConfig {
 
         return (request, response, authentication) -> {
             String accessToken = jwtService.generateToken(authentication);
-            String refreshToken =
-                    refreshTokenService.createRefreshToken(authentication.getName());
+            String refreshToken = refreshTokenService.issueInitialRefreshToken(authentication.getName());
 
             response.setStatus(HttpServletResponse.SC_OK);
             response.setContentType("application/json");
